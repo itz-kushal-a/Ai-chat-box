@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>System Architecture — AI Coding Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050810;
+  --bg2:#0c1220;
+  --bg3:#111827;
+  --border:#1e2d45;
+  --border2:#2a3f5f;
+  --blue:#3b82f6;
+  --cyan:#06b6d4;
+  --green:#10b981;
+  --yellow:#f59e0b;
+  --red:#ef4444;
+  --purple:#8b5cf6;
+  --pink:#ec4899;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --faint:#1e293b;
+  --font-ui:'Syne',sans-serif;
+  --font-code:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow-x:hidden}
+body{padding:0;min-height:100vh}
+
+/* grid background */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(59,130,246,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+.page{position:relative;z-index:1;padding:32px 24px 48px;max-width:1100px;margin:0 auto}
+
+/* header */
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:clamp(22px,4vw,34px);font-weight:800;letter-spacing:-1px;
+  background:linear-gradient(135deg,#60a5fa,#06b6d4,#10b981);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:var(--muted);font-size:13px;margin-top:6px;font-family:var(--font-code)}
+
+/* layer tabs */
+.tabs{display:flex;gap:6px;justify-content:center;margin-bottom:28px;flex-wrap:wrap}
+.tab-btn{
+  padding:6px 14px;border-radius:20px;font-size:11.5px;font-family:var(--font-ui);font-weight:600;
+  border:1px solid var(--border2);background:var(--bg2);color:var(--muted);cursor:pointer;
+  transition:all .2s;letter-spacing:.3px;
+}
+.tab-btn:hover{color:var(--text);border-color:var(--blue)}
+.tab-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* arch diagram */
+.arch{display:flex;flex-direction:column;gap:0}
+
+/* layer */
+.layer{
+  border:1px solid var(--border2);border-radius:12px;
+  background:var(--bg2);overflow:hidden;
+  transition:box-shadow .3s;cursor:pointer;
+  margin-bottom:4px;
+}
+.layer:hover{box-shadow:0 0 0 1px var(--border2),0 4px 24px rgba(0,0,0,.4)}
+.layer.highlighted{box-shadow:0 0 0 2px var(--blue),0 0 40px rgba(59,130,246,.12)}
+
+.layer-header{
+  padding:10px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+}
+.layer-badge{
+  padding:2px 8px;border-radius:4px;font-size:9.5px;font-weight:700;
+  font-family:var(--font-code);letter-spacing:.8px;text-transform:uppercase;
+}
+.layer-title{font-size:13px;font-weight:700;letter-spacing:-.2px}
+.layer-sub{font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--font-code)}
+
+.layer-body{padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+
+/* node cards */
+.node{
+  flex:1;min-width:120px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;cursor:pointer;transition:all .2s;
+  display:flex;flex-direction:column;gap:5px;
+  position:relative;overflow:hidden;
+}
+.node::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--node-color,var(--blue))}
+.node:hover{transform:translateY(-2px);border-color:var(--node-color,var(--blue));
+  box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.node.active{border-color:var(--node-color,var(--blue));background:#0f1929;
+  box-shadow:0 0 0 1px var(--node-color,var(--blue)),0 0 20px color-mix(in srgb,var(--node-color,var(--blue)) 20%,transparent)}
+.node-icon{font-size:20px;margin-bottom:2px}
+.node-name{font-size:12px;font-weight:700}
+.node-tech{font-size:10px;color:var(--muted);font-family:var(--font-code)}
+.node-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tag{padding:1px 6px;border-radius:3px;font-size:9px;font-family:var(--font-code);
+  background:var(--faint);color:var(--muted);border:1px solid var(--border)}
+
+/* arrow connector */
+.connector{
+  display:flex;align-items:center;justify-content:center;
+  padding:4px 0;gap:8px;color:var(--muted);font-size:10.5px;
+  font-family:var(--font-code);
+}
+.conn-line{
+  flex:1;height:1px;max-width:120px;
+  background:linear-gradient(90deg,transparent,var(--border2),transparent);
+}
+.conn-arrow{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.conn-label{
+  font-size:9.5px;color:var(--muted);font-family:var(--font-code);
+  background:var(--bg);padding:2px 8px;border:1px solid var(--border);border-radius:10px;
+}
+.conn-chevron{color:var(--blue);font-size:14px;line-height:1;animation:bounce .8s infinite alternate}
+@keyframes bounce{from{transform:translateY(-1px)}to{transform:translateY(1px)}}
+
+/* detail panel */
+.detail{
+  margin-top:20px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:12px;padding:20px;
+  display:none;animation:fadeIn .2s ease;
+}
+.detail.visible{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.detail-title{font-size:16px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.detail-desc{color:var(--muted);font-size:12.5px;line-height:1.7;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.detail-item{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:10px 12px}
+.detail-item-label{font-size:9.5px;font-family:var(--font-code);color:var(--muted);letter-spacing:.5px;
+  text-transform:uppercase;margin-bottom:4px}
+.detail-item-val{font-size:12px;font-weight:600;font-family:var(--font-code)}
+
+/* data flow section */
+.flow-section{margin-top:28px}
+.flow-title{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.flow-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.flows{display:flex;gap:10px;flex-wrap:wrap}
+.flow-card{
+  flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;
+}
+.flow-card:hover{border-color:var(--blue);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.flow-card.active{border-color:var(--cyan)}
+.flow-card-title{font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.flow-steps{display:flex;flex-direction:column;gap:0}
+.flow-step{
+  display:flex;align-items:flex-start;gap:8px;padding:5px 0;
+  font-size:11px;color:var(--muted);font-family:var(--font-code);line-height:1.5;
+  border-left:1px solid var(--border);margin-left:6px;padding-left:12px;
+  position:relative;
+}
+.flow-step::before{
+  content:'';position:absolute;left:-4px;top:11px;
+  width:7px;height:7px;border-radius:50%;background:var(--border2);border:1px solid var(--border2);
+}
+.flow-step.done::before{background:var(--green)}
+.flow-step:last-child{border-left-color:transparent}
+
+/* api section */
+.api-section{margin-top:28px}
+.api-group{margin-bottom:16px}
+.api-group-title{font-size:11px;font-weight:700;color:var(--muted);
+  letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;font-family:var(--font-code)}
+.api-routes{display:flex;flex-direction:column;gap:4px}
+.api-route{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:7px 12px;font-family:var(--font-code);font-size:11.5px;
+}
+.method{min-width:44px;font-weight:700;font-size:10px}
+.method.get{color:var(--green)}
+.method.post{color:var(--blue)}
+.method.put{color:var(--yellow)}
+.method.del{color:var(--red)}
+.method.ws{color:var(--purple)}
+.route-path{color:var(--text);flex:1}
+.route-desc{color:var(--muted);font-size:10.5px;margin-left:auto}
+
+/* legend */
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;font-size:11px}
+.leg{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>System Architecture</h1>
+    <p>AI Coding Assistant · Phase 3 · Click any node to explore</p>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#3b82f6"></div>Client</div>
+    <div class="leg"><div class="leg-dot" style="background:#06b6d4"></div>Gateway</div>
+    <div class="leg"><div class="leg-dot" style="background:#10b981"></div>Services</div>
+    <div class="leg"><div class="leg-dot" style="background:#f59e0b"></div>Data</div>
+    <div class="leg"><div class="leg-dot" style="background:#8b5cf6"></div>External</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('diagram')">Architecture</button>
+    <button class="tab-btn" onclick="showTab('flow')">Data Flows</button>
+    <button class="tab-btn" onclick="showTab('api')">API Routes</button>
+  </div>
+
+  <!-- DIAGRAM TAB -->
+  <div id="tab-diagram" class="arch">
+
+    <!-- CLIENT LAYER -->
+    <div class="layer" id="layer-client">
+      <div class="layer-header">
+        <span class="layer-badge" style="background:#3b82f620;color:#60a5fa;border:1px solid #3b82f640">L1</span>
+        <span class="layer-title">Client Layer</span>
+        <span class="layer-sub">HTTPS · WebSocket · SSE</span>
+      </div>
+      <div class="layer-body">
+        <div class="node" style="--node-color:#3b82f6" onclick="showDetail('frontend')">
+          <div class="node-icon">🖥</div>
+          <div class="node-name">Frontend</div>
+          <div class="node-tech">React + Vite</div>
+          <div class="node-tags"><span class="tag">Monaco</span><span class="tag">Zustand</span><span class="tag">WS</span></div>
+        </div>
+        <div class="node" style="--node-color:#3b82f6" onclick="showDetail('mobile')">
+          <div class="node-icon">📱</div>
+          <div class="node-name">Mobile</div>
+          <div class="node-tech">Expo React Native</div>
+          <div class="node-tags"><span class="tag">SDK 51</span><span class="tag">SSE</span></div>
+        </div>
+        <div class="node" style="--node-color:#3b82f6" onclick="showDetail('desktop')">
+          <div class="node-icon">🖱</div>
+          <div class="node-name">Desktop</div>
+          <div class="node-tech">Electron 29</div>
+          <div class="node-tags"><span class="tag">FS Access</span><span class="tag">Offline</span></div>
+        </div>
+        <div class="node" style="--node-color:#3b82f6;opacity:.5" onclick="showDetail('vscode')">
+          <div class="node-icon">🧩</div>
+          <div class="node-name">VS Code Ext</div>
+          <div class="node-tech">WebView + REST</div>
+          <div class="node-tags"><span class="tag" style="color:#ef4444;border-color:#ef444440">future</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">
+        <span class="conn-label">HTTPS / WSS / SSE</span>
+        <span class="conn-chevron">↓</span>
+      </div>
+      <div class="conn-line"></div>
+    </div>
+
+    <!-- GATEWAY LAYER -->
+    <div class="layer" id="layer-gateway">
+      <div class="layer-header">
+        <span class="layer-badge" style="background:#06b6d420;color:#22d3ee;border:1px solid #06b6d440">L2</span>
+        <span class="layer-title">API Gateway Layer</span>
+        <span class="layer-sub">packages/backend · :4000</span>
+      </div>
+      <div class="layer-body">
+        <div class="node" style="--node-color:#06b6d4;flex:3;min-width:100%" onclick="showDetail('gateway')">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+            <div>
+              <div class="node-icon">🔀</div>
+              <div class="node-name">Express Gateway</div>
+              <div class="node-tech">TypeScript · tsx</div>
+            </div>
+            <div class="node-tags" style="gap:6px">
+              <span class="tag">JWT Auth</span>
+              <span class="tag">Rate Limit</span>
+              <span class="tag">CORS</span>
+              <span class="tag">WS Upgrade</span>
+              <span class="tag">Logging</span>
+              <span class="tag">Routing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">
+        <span class="conn-label">Internal · Service calls</span>
+        <span class="conn-chevron">↓</span>
+      </div>
+      <div class="conn-line"></div>
+    </div>
+
+    <!-- SERVICES LAYER -->
+    <div class="layer" id="layer-services">
+      <div class="layer-header">
+        <span class="layer-badge" style="background:#10b98120;color:#34d399;border:1px solid #10b98140">L3</span>
+        <span class="layer-title">Core Services Layer</span>
+        <span class="layer-sub">Isolated modules · Single responsibility</span>
+      </div>
+      <div class="layer-body">
+        <div class="node" style="--node-color:#10b981" onclick="showDetail('auth')">
+          <div class="node-icon">🔐</div>
+          <div class="node-name">Auth Service</div>
+          <div class="node-tech">/auth</div>
+          <div class="node-tags"><span class="tag">OAuth</span><span class="tag">JWT</span></div>
+        </div>
+        <div class="node" style="--node-color:#10b981" onclick="showDetail('files')">
+          <div class="node-icon">📁</div>
+          <div class="node-name">File Service</div>
+          <div class="node-tech">/files</div>
+          <div class="node-tags"><span class="tag">CRUD</span><span class="tag">Diff</span></div>
+        </div>
+        <div class="node" style="--node-color:#06b6d4" onclick="showDetail('ai')">
+          <div class="node-icon">🤖</div>
+          <div class="node-name">AI Service</div>
+          <div class="node-tech">/chat</div>
+          <div class="node-tags"><span class="tag">Stream</span><span class="tag">Context</span></div>
+        </div>
+        <div class="node" style="--node-color:#10b981" onclick="showDetail('session')">
+          <div class="node-icon">⚡</div>
+          <div class="node-name">Session Service</div>
+          <div class="node-tech">/sessions</div>
+          <div class="node-tags"><span class="tag">Redis</span><span class="tag">Tabs</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">
+        <span class="conn-label">Read / Write</span>
+        <span class="conn-chevron">↓</span>
+      </div>
+      <div class="conn-line"></div>
+    </div>
+
+    <!-- DATA LAYER -->
+    <div class="layer" id="layer-data">
+      <div class="layer-header">
+        <span class="layer-badge" style="background:#f59e0b20;color:#fbbf24;border:1px solid #f59e0b40">L4</span>
+        <span class="layer-title">Data Layer</span>
+        <span class="layer-sub">Persistence · Cache · Storage</span>
+      </div>
+      <div class="layer-body">
+        <div class="node" style="--node-color:#f59e0b" onclick="showDetail('postgres')">
+          <div class="node-icon">🐘</div>
+          <div class="node-name">PostgreSQL 16</div>
+          <div class="node-tech">Users · Chat · Files</div>
+          <div class="node-tags"><span class="tag">users</span><span class="tag">messages</span><span class="tag">workspaces</span></div>
+        </div>
+        <div class="node" style="--node-color:#ef4444" onclick="showDetail('redis')">
+          <div class="node-icon">⚡</div>
+          <div class="node-name">Redis 7</div>
+          <div class="node-tech">Sessions · Cache</div>
+          <div class="node-tags"><span class="tag">TTL</span><span class="tag">rate limit</span><span class="tag">pub/sub</span></div>
+        </div>
+        <div class="node" style="--node-color:#f59e0b" onclick="showDetail('storage')">
+          <div class="node-icon">🗄</div>
+          <div class="node-name">File Storage</div>
+          <div class="node-tech">FS (dev) · S3 (prod)</div>
+          <div class="node-tags"><span class="tag">code files</span><span class="tag">uploads</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">
+        <span class="conn-label">External API calls</span>
+        <span class="conn-chevron">↓</span>
+      </div>
+      <div class="conn-line"></div>
+    </div>
+
+    <!-- EXTERNAL LAYER -->
+    <div class="layer" id="layer-external">
+      <div class="layer-header">
+        <span class="layer-badge" style="background:#8b5cf620;color:#a78bfa;border:1px solid #8b5cf640">EXT</span>
+        <span class="layer-title">External Services</span>
+        <span class="layer-sub">Third-party · Outbound only</span>
+      </div>
+      <div class="layer-body">
+        <div class="node" style="--node-color:#8b5cf6" onclick="showDetail('claude')">
+          <div class="node-icon">🧠</div>
+          <div class="node-name">Anthropic API</div>
+          <div class="node-tech">Claude Sonnet 4</div>
+          <div class="node-tags"><span class="tag">streaming</span><span class="tag">8k ctx</span></div>
+        </div>
+        <div class="node" style="--node-color:#8b5cf6" onclick="showDetail('github')">
+          <div class="node-icon">🐙</div>
+          <div class="node-name">GitHub OAuth</div>
+          <div class="node-tech">OAuth 2.0</div>
+          <div class="node-tags"><span class="tag">read:user</span><span class="tag">user:email</span></div>
+        </div>
+        <div class="node" style="--node-color:#ec4899" onclick="showDetail('langfuse')">
+          <div class="node-icon">📊</div>
+          <div class="node-name">Langfuse</div>
+          <div class="node-tech">AI Observability</div>
+          <div class="node-tags"><span class="tag">tokens</span><span class="tag">latency</span><span class="tag">cost</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div class="detail" id="detail-panel">
+      <div class="detail-title" id="detail-title"></div>
+      <div class="detail-desc" id="detail-desc"></div>
+      <div class="detail-grid" id="detail-grid"></div>
+    </div>
+
+  </div><!-- end diagram tab -->
+
+  <!-- FLOW TAB -->
+  <div id="tab-flow" style="display:none">
+    <div class="flows">
+      <div class="flow-card" onclick="animateFlow(this)">
+        <div class="flow-card-title">💬 Chat Message Flow</div>
+        <div class="flow-steps">
+          <div class="flow-step">User types message + selects code</div>
+          <div class="flow-step">Frontend sends POST /v1/chat/message</div>
+          <div class="flow-step">Gateway validates JWT token</div>
+          <div class="flow-step">AI Service loads conversation history</div>
+          <div class="flow-step">Builds context: code + history + path</div>
+          <div class="flow-step">Calls Anthropic API (streaming)</div>
+          <div class="flow-step">Saves messages to PostgreSQL</div>
+          <div class="flow-step">Logs call to Langfuse</div>
+          <div class="flow-step">Streams tokens back via WebSocket</div>
+        </div>
+      </div>
+      <div class="flow-card" onclick="animateFlow(this)">
+        <div class="flow-card-title">📄 File Open Flow</div>
+        <div class="flow-steps">
+          <div class="flow-step">User clicks file in explorer</div>
+          <div class="flow-step">GET /v1/files/:workspace/:path</div>
+          <div class="flow-step">Gateway JWT check passes</div>
+          <div class="flow-step">File Service reads from FS or S3</div>
+          <div class="flow-step">Returns content + language + metadata</div>
+          <div class="flow-step">Monaco Editor loads content</div>
+          <div class="flow-step">Session Service updates tab state in Redis</div>
+        </div>
+      </div>
+      <div class="flow-card" onclick="animateFlow(this)">
+        <div class="flow-card-title">🔐 Auth Flow</div>
+        <div class="flow-steps">
+          <div class="flow-step">User clicks Login with GitHub</div>
+          <div class="flow-step">Redirect to GitHub OAuth</div>
+          <div class="flow-step">GitHub returns auth code</div>
+          <div class="flow-step">POST /v1/auth/github/callback</div>
+          <div class="flow-step">Auth Service exchanges code</div>
+          <div class="flow-step">Upserts user in PostgreSQL</div>
+          <div class="flow-step">Issues JWT (15min) + refresh (7d)</div>
+          <div class="flow-step">JWT in memory · refresh in httpOnly cookie</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API TAB -->
+  <div id="tab-api" style="display:none">
+    <div class="api-section">
+      <div class="api-group">
+        <div class="api-group-title">Authentication</div>
+        <div class="api-routes">
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/auth/github</span><span class="route-desc">Initiate GitHub OAuth</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/auth/github/callback</span><span class="route-desc">Handle callback · return JWT</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/auth/refresh</span><span class="route-desc">Refresh access token</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/auth/logout</span><span class="route-desc">Invalidate session</span></div>
+        </div>
+      </div>
+      <div class="api-group">
+        <div class="api-group-title">Files</div>
+        <div class="api-routes">
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/files/:workspaceId</span><span class="route-desc">List file tree</span></div>
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/files/:workspaceId/*path</span><span class="route-desc">Get file content</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/files/:workspaceId/*path</span><span class="route-desc">Create file</span></div>
+          <div class="api-route"><span class="method put">PUT</span><span class="route-path">/v1/files/:workspaceId/*path</span><span class="route-desc">Update file content</span></div>
+          <div class="api-route"><span class="method del">DEL</span><span class="route-path">/v1/files/:workspaceId/*path</span><span class="route-desc">Delete file</span></div>
+        </div>
+      </div>
+      <div class="api-group">
+        <div class="api-group-title">Chat</div>
+        <div class="api-routes">
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/chat/conversations</span><span class="route-desc">List conversations</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/chat/conversations</span><span class="route-desc">New conversation</span></div>
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/chat/conversations/:id/messages</span><span class="route-desc">Get message history</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/chat/message</span><span class="route-desc">Send message (REST)</span></div>
+          <div class="api-route"><span class="method ws">WS</span><span class="route-path">/v1/chat/stream</span><span class="route-desc">Send message (streaming)</span></div>
+          <div class="api-route"><span class="method del">DEL</span><span class="route-path">/v1/chat/conversations/:id</span><span class="route-desc">Clear conversation</span></div>
+        </div>
+      </div>
+      <div class="api-group">
+        <div class="api-group-title">Session & Workspaces</div>
+        <div class="api-routes">
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/session</span><span class="route-desc">Get workspace state</span></div>
+          <div class="api-route"><span class="method put">PUT</span><span class="route-path">/v1/session/active-file</span><span class="route-desc">Update active file</span></div>
+          <div class="api-route"><span class="method get">GET</span><span class="route-path">/v1/workspaces</span><span class="route-desc">List user workspaces</span></div>
+          <div class="api-route"><span class="method post">POST</span><span class="route-path">/v1/workspaces</span><span class="route-desc">Create workspace</span></div>
+          <div class="api-route"><span class="method del">DEL</span><span class="route-path">/v1/workspaces/:id</span><span class="route-desc">Delete workspace</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<script>
+const details = {
+  frontend:{title:'🖥 Frontend',desc:'Primary browser interface. React 18 with Vite for fast HMR. Monaco Editor (same engine as VS Code) for code editing. Zustand for lightweight state. WebSocket for streaming AI responses token-by-token.',items:[{l:'Framework',v:'React 18 + Vite'},{l:'Editor',v:'Monaco Editor'},{l:'State',v:'Zustand'},{l:'Streaming',v:'WebSocket'},{l:'Port',v:':5173'},{l:'Package',v:'packages/frontend'}]},
+  mobile:{title:'📱 Mobile',desc:'Expo React Native app. Uses SSE instead of WebSocket for battery efficiency. Stripped-down editor with AI chat as the primary focus. Polling-based updates for simplicity on mobile networks.',items:[{l:'Framework',v:'Expo SDK 51'},{l:'Streaming',v:'SSE / polling'},{l:'Package',v:'packages/mobile'},{l:'Platforms',v:'iOS + Android'}]},
+  desktop:{title:'🖱 Desktop',desc:'Electron app with direct file system access via the preload bridge. Offline-capable for editing; AI features need internet. Auto-update via electron-updater. Renders the same React frontend in a BrowserWindow.',items:[{l:'Framework',v:'Electron 29'},{l:'FS Access',v:'Via preload bridge'},{l:'Offline',v:'File editing only'},{l:'Package',v:'packages/desktop'}]},
+  vscode:{title:'🧩 VS Code Extension',desc:'Future phase. Sidebar panel embedding the chat UI as a WebView. Uses the same REST/WS API as all other clients. Allows developers to stay in VS Code while using AI assistance.',items:[{l:'Status',v:'Future Phase'},{l:'Transport',v:'REST + WebSocket'},{l:'UI',v:'WebView panel'}]},
+  gateway:{title:'🔀 API Gateway',desc:'Single Express app that is the only entry point for all clients. Handles JWT validation, rate limiting (60 req/min REST, 10 AI/min), WebSocket upgrades, and routes requests to the correct service module.',items:[{l:'Framework',v:'Express + TypeScript'},{l:'Auth',v:'JWT middleware'},{l:'Rate Limit',v:'60/min REST · 10/min AI'},{l:'Port',v:':4000'},{l:'Package',v:'packages/backend'}]},
+  auth:{title:'🔐 Auth Service',desc:'Handles GitHub OAuth 2.0 login, JWT issuance with 15min expiry, refresh token rotation with 7-day TTL in Redis, and session invalidation on logout.',items:[{l:'Provider',v:'GitHub OAuth 2.0'},{l:'Access Token',v:'JWT · 15min'},{l:'Refresh Token',v:'httpOnly cookie · 7d'},{l:'Storage',v:'Redis (refresh tokens)'}]},
+  files:{title:'📁 File Service',desc:'CRUD operations on code files within a workspace. Returns file trees for the explorer. Handles file diffing for change tracking. Uses local FS in dev and S3 in production.',items:[{l:'Dev Storage',v:'Local file system'},{l:'Prod Storage',v:'AWS S3'},{l:'Features',v:'CRUD · Tree · Diff'},{l:'Path Sanitization',v:'Yes · traversal prevention'}]},
+  ai:{title:'🤖 AI Service',desc:'Core intelligence layer. Builds a rich context window from conversation history, selected code, file path, and monorepo structure. Calls Anthropic Claude API with streaming enabled. Saves all messages and logs to Langfuse for observability.',items:[{l:'Model',v:'claude-sonnet-4'},{l:'Max Context',v:'8,000 tokens'},{l:'Streaming',v:'Yes · WebSocket'},{l:'Observability',v:'Langfuse'}]},
+  session:{title:'⚡ Session Service',desc:'Fast session state management backed by Redis. Tracks open tabs, active file, cursor positions, and workspace state per user. All data has a 24h TTL so stale sessions auto-expire.',items:[{l:'Storage',v:'Redis 7'},{l:'TTL',v:'24 hours'},{l:'Tracks',v:'Tabs · cursor · active file'},{l:'Performance',v:'<5ms read/write'}]},
+  postgres:{title:'🐘 PostgreSQL',desc:'Primary relational database. Stores users, conversation history, messages with token counts, and workspace metadata. Read replicas can be added for scaling message history queries.',items:[{l:'Version',v:'PostgreSQL 16'},{l:'Tables',v:'users · messages · workspaces · conversations'},{l:'Scaling',v:'Read replicas'},{l:'Backups',v:'Daily snapshots'}]},
+  redis:{title:'⚡ Redis',desc:'High-speed in-memory store for sessions, rate limit counters, active tab state, and AI response caching. Identical prompts within a 5-minute window reuse cached responses to reduce API costs.',items:[{l:'Version',v:'Redis 7'},{l:'Use cases',v:'Sessions · rate limits · cache'},{l:'AI Cache TTL',v:'5 minutes'},{l:'Session TTL',v:'24 hours'}]},
+  storage:{title:'🗄 File Storage',desc:'Code files stored on local FS in development. In production, files sync to AWS S3 and are referenced by path in PostgreSQL rather than stored as database blobs.',items:[{l:'Dev',v:'Local file system'},{l:'Prod',v:'AWS S3'},{l:'Reference',v:'Path in PostgreSQL'},{l:'CDN',v:'CloudFront (prod)'}]},
+  claude:{title:'🧠 Anthropic Claude API',desc:'The AI backbone. Called by the AI Service with a structured prompt including monorepo context, the active file content, selected code, and the last N conversation messages. Streaming enabled for real-time response delivery.',items:[{l:'Model',v:'claude-sonnet-4-20250514'},{l:'Max tokens',v:'1,000 output'},{l:'Context',v:'8,000 tokens input'},{l:'Streaming',v:'Enabled'}]},
+  github:{title:'🐙 GitHub OAuth',desc:'Used only for authentication. The app requests minimal scopes — just enough to get the user\'s profile and email. No repo access is required or requested in Phase 3.',items:[{l:'Flow',v:'OAuth 2.0'},{l:'Scopes',v:'read:user · user:email'},{l:'Repo access',v:'Not required'},{l:'Phase',v:'Phase 3'}]},
+  langfuse:{title:'📊 Langfuse',desc:'AI observability platform. Every call to the Anthropic API is logged with prompt tokens, completion tokens, latency, model version, and user ID. Used for cost monitoring, quality evaluation, and debugging AI responses.',items:[{l:'Tracks',v:'Tokens · latency · cost'},{l:'Per call',v:'user_id · model · prompt'},{l:'Use',v:'Cost monitoring · QA'},{l:'Dashboard',v:'langfuse.com'}]},
+};
+
+function showDetail(key){
+  const d=details[key];if(!d)return;
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const panel=document.getElementById('detail-panel');
+  document.getElementById('detail-title').textContent=d.title;
+  document.getElementById('detail-desc').textContent=d.desc;
+  document.getElementById('detail-grid').innerHTML=d.items.map(i=>`<div class="detail-item"><div class="detail-item-label">${i.l}</div><div class="detail-item-val">${i.v}</div></div>`).join('');
+  panel.classList.add('visible');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function showTab(t){
+  ['diagram','flow','api'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active',['diagram','flow','api'][i]===t);
+  });
+}
+
+function animateFlow(card){
+  document.querySelectorAll('.flow-card').forEach(c=>c.classList.remove('active'));
+  card.classList.add('active');
+  const steps=card.querySelectorAll('.flow-step');
+  steps.forEach(s=>s.classList.remove('done'));
+  let i=0;
+  const iv=setInterval(()=>{
+    if(i<steps.length){steps[i].classList.add('done');i++;}
+    else clearInterval(iv);
+  },220);
+}
+</script>
+</body>
+</html>
