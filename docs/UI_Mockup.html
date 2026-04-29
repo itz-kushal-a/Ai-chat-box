@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Coding Assistant — UI Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary:    #0d1117;
+    --bg-secondary:  #161b22;
+    --bg-tertiary:   #21262d;
+    --bg-hover:      #2d333b;
+    --border:        #30363d;
+    --accent:        #58a6ff;
+    --accent-green:  #3fb950;
+    --accent-yellow: #d29922;
+    --accent-red:    #f85149;
+    --text-primary:  #e6edf3;
+    --text-muted:    #8b949e;
+    --text-faint:    #484f58;
+    --font-ui:       'Geist', sans-serif;
+    --font-code:     'Geist Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    height: 44px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+  .logo-hex {
+    width: 22px; height: 22px;
+    background: linear-gradient(135deg, #58a6ff, #3fb950);
+    clip-path: polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  }
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-code);
+    flex: 1;
+  }
+  .breadcrumb span { cursor: pointer; }
+  .breadcrumb span:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-faint); }
+  .breadcrumb .current { color: var(--text-primary); }
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .kbd {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-family: var(--font-code);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .kbd:hover { border-color: var(--accent); color: var(--accent); }
+  .avatar {
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, #58a6ff44, #3fb95044);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── FILE EXPLORER ── */
+  .explorer {
+    width: 240px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s ease;
+  }
+  .explorer.collapsed { width: 0; overflow: hidden; }
+  .explorer-header {
+    padding: 10px 12px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .explorer-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 3px;
+  }
+  .icon-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+  .file-search {
+    margin: 0 8px 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .file-tree { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-code);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .tree-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .tree-item.active { background: #58a6ff18; color: var(--accent); }
+  .tree-item.folder { color: var(--text-primary); font-family: var(--font-ui); }
+  .tree-item .dot { color: var(--accent-yellow); margin-left: auto; font-size: 8px; }
+  .indent-1 { padding-left: 24px; }
+  .indent-2 { padding-left: 36px; }
+  .indent-3 { padding-left: 48px; }
+  .indent-4 { padding-left: 60px; }
+
+  /* ── EDITOR PANEL ── */
+  .editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+  .tab-bar {
+    height: 36px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: end;
+    padding: 0 0 0 0;
+    overflow: hidden;
+  }
+  .tab {
+    height: 32px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: var(--font-code);
+    color: var(--text-muted);
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+    border-top: 2px solid transparent;
+    background: var(--bg-secondary);
+    white-space: nowrap;
+  }
+  .tab.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-top-color: var(--accent);
+  }
+  .tab .close {
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-left: 2px;
+  }
+  .tab:hover .close { color: var(--text-muted); }
+  .tab .unsaved { color: var(--accent-yellow); font-size: 8px; }
+  .code-area {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 0;
+    font-family: var(--font-code);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .code-line {
+    display: flex;
+    padding: 0 20px;
+    gap: 20px;
+  }
+  .code-line:hover { background: #ffffff06; }
+  .code-line.highlighted { background: #58a6ff12; border-left: 2px solid var(--accent); }
+  .line-num { color: var(--text-faint); min-width: 20px; text-align: right; user-select: none; }
+  .line-code { color: var(--text-primary); }
+  .kw { color: #ff7b72; }
+  .fn { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .cm { color: var(--text-faint); font-style: italic; }
+  .type { color: #ffa657; }
+  .import { color: #79c0ff; }
+  .editor-toolbar {
+    height: 38px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .ai-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s;
+  }
+  .ai-btn:hover { border-color: var(--accent); color: var(--accent); background: #58a6ff12; }
+  .ai-btn.primary { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CHAT PANEL ── */
+  .chat-panel {
+    width: 340px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s ease;
+  }
+  .chat-panel.collapsed { width: 0; overflow: hidden; }
+  .chat-header {
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .ai-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 6px var(--accent-green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .chat-title { font-size: 13px; font-weight: 500; flex: 1; }
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg { display: flex; flex-direction: column; gap: 4px; }
+  .msg.user { align-items: flex-end; }
+  .msg.ai { align-items: flex-start; }
+  .msg-bubble {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .msg.user .msg-bubble {
+    background: #58a6ff22;
+    border: 1px solid #58a6ff44;
+    color: var(--text-primary);
+    border-radius: 10px 10px 2px 10px;
+  }
+  .msg.ai .msg-bubble {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 2px 10px 10px 10px;
+  }
+  .code-block {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .code-block-body {
+    padding: 10px;
+    font-family: var(--font-code);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    overflow-x: auto;
+  }
+  .code-block-actions {
+    display: flex;
+    gap: 6px;
+    padding: 6px 10px;
+    border-top: 1px solid var(--border);
+  }
+  .cb-btn {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .cb-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .cb-btn.insert { border-color: var(--accent-green); color: var(--accent-green); }
+  .context-bar {
+    margin: 0 10px 6px;
+    background: #ffa65714;
+    border: 1px solid #ffa65740;
+    border-radius: 5px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--accent-yellow);
+    font-family: var(--font-code);
+  }
+  .context-bar .remove {
+    margin-left: auto;
+    cursor: pointer;
+    opacity: 0.6;
+  }
+  .chat-input-area {
+    border-top: 1px solid var(--border);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .chat-input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 12.5px;
+    resize: none;
+    outline: none;
+    width: 100%;
+    min-height: 60px;
+    line-height: 1.5;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--text-faint); }
+  .input-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .send-btn {
+    margin-left: auto;
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 5px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .send-btn:hover { background: #79b8ff; }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    height: 24px;
+    background: #1c2128;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-family: var(--font-code);
+    color: var(--text-muted);
+  }
+  .status-item { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .status-item:hover { color: var(--text-primary); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-item.ai-ready { color: var(--accent-green); margin-left: auto; }
+
+  /* ── TOGGLE BUTTONS ── */
+  .panel-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text-faint);
+    z-index: 10;
+  }
+  .panel-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* ── MOBILE VIEW ── */
+  .mobile-preview {
+    display: none;
+  }
+  .view-switcher {
+    display: flex;
+    gap: 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+    margin-left: auto;
+  }
+  .vs-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-muted);
+    border: none;
+    background: none;
+    font-family: var(--font-ui);
+  }
+  .vs-btn.active { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-hex"></div>
+    CodeAI
+  </div>
+  <div class="breadcrumb">
+    <span>packages</span>
+    <span class="sep">/</span>
+    <span>backend</span>
+    <span class="sep">/</span>
+    <span>src</span>
+    <span class="sep">/</span>
+    <span>routes</span>
+    <span class="sep">/</span>
+    <span class="current">api.ts</span>
+  </div>
+  <div class="topbar-actions">
+    <div class="view-switcher">
+      <button class="vs-btn active" onclick="setView('desktop')">Desktop</button>
+      <button class="vs-btn" onclick="setView('mobile')">Mobile</button>
+    </div>
+    <div class="kbd" title="Command Palette (Ctrl+K)">⌘K</div>
+    <div class="icon-btn" title="Settings">⚙</div>
+    <div class="avatar">S</div>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main" id="main-layout">
+
+  <!-- FILE EXPLORER -->
+  <div class="explorer" id="explorer">
+    <div class="explorer-header">
+      <span class="explorer-title">Explorer</span>
+      <button class="icon-btn" onclick="toggleExplorer()">✕</button>
+    </div>
+    <div class="file-search">
+      <span>🔍</span>
+      <span style="color:var(--text-faint);font-size:11px;">Search files…</span>
+    </div>
+    <div class="file-tree">
+      <div class="tree-item folder">▾ packages</div>
+      <div class="tree-item folder indent-1">▾ shared</div>
+      <div class="tree-item folder indent-2">▾ src</div>
+      <div class="tree-item indent-3">📄 index.ts</div>
+      <div class="tree-item indent-3">📄 utils.ts</div>
+      <div class="tree-item indent-3">📄 types.ts</div>
+      <div class="tree-item folder indent-1">▾ backend</div>
+      <div class="tree-item folder indent-2">▾ src</div>
+      <div class="tree-item indent-3">📄 index.ts</div>
+      <div class="tree-item folder indent-3">▾ routes</div>
+      <div class="tree-item active indent-4">📄 api.ts <span class="dot">●</span></div>
+      <div class="tree-item folder indent-1">▸ frontend</div>
+      <div class="tree-item folder indent-1">▸ mobile</div>
+      <div class="tree-item folder indent-1">▸ desktop</div>
+    </div>
+  </div>
+
+  <!-- EDITOR PANEL -->
+  <div class="editor-panel">
+    <div class="tab-bar">
+      <div class="tab active">
+        📄 api.ts <span class="unsaved">●</span>
+        <span class="close">✕</span>
+      </div>
+      <div class="tab">
+        📄 index.ts
+        <span class="close">✕</span>
+      </div>
+      <div class="tab">
+        📄 App.tsx
+        <span class="close">✕</span>
+      </div>
+    </div>
+    <div class="code-area">
+      <div class="code-line"><span class="line-num">1</span><span class="line-code"><span class="kw">import</span> { <span class="import">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>;</span></div>
+      <div class="code-line"><span class="line-num">2</span><span class="line-code"><span class="kw">import</span> { <span class="import">capitalize</span>, <span class="import">ApiResponse</span> } <span class="kw">from</span> <span class="str">'shared'</span>;</span></div>
+      <div class="code-line"><span class="line-num">3</span><span class="line-code"></span></div>
+      <div class="code-line"><span class="line-num">4</span><span class="line-code"><span class="kw">const</span> <span class="fn">router</span> = <span class="fn">Router</span>();</span></div>
+      <div class="code-line"><span class="line-num">5</span><span class="line-code"></span></div>
+      <div class="code-line"><span class="line-num">6</span><span class="line-code"><span class="cm">// GET /api/hello</span></span></div>
+      <div class="code-line highlighted"><span class="line-num">7</span><span class="line-code"><span class="fn">router</span>.<span class="fn">get</span>(<span class="str">'/hello'</span>, (<span class="fn">_req</span>, <span class="fn">res</span>) <span class="kw">=></span> {</span></div>
+      <div class="code-line highlighted"><span class="line-num">8</span><span class="line-code">&nbsp;&nbsp;<span class="kw">const</span> response: <span class="type">ApiResponse</span>&lt;{ <span class="fn">message</span>: <span class="type">string</span> }&gt; = {</span></div>
+      <div class="code-line highlighted"><span class="line-num">9</span><span class="line-code">&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">success</span>: <span class="kw">true</span>,</span></div>
+      <div class="code-line highlighted"><span class="line-num">10</span><span class="line-code">&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">data</span>: { <span class="fn">message</span>: <span class="fn">capitalize</span>(<span class="str">'hello from backend'</span>) },</span></div>
+      <div class="code-line highlighted"><span class="line-num">11</span><span class="line-code">&nbsp;&nbsp;};</span></div>
+      <div class="code-line highlighted"><span class="line-num">12</span><span class="line-code">&nbsp;&nbsp;<span class="fn">res</span>.<span class="fn">json</span>(response);</span></div>
+      <div class="code-line highlighted"><span class="line-num">13</span><span class="line-code">});</span></div>
+      <div class="code-line"><span class="line-num">14</span><span class="line-code"></span></div>
+      <div class="code-line"><span class="line-num">15</span><span class="line-code"><span class="kw">export default</span> router;</span></div>
+    </div>
+    <div class="editor-toolbar">
+      <button class="ai-btn primary">🤖 Ask AI</button>
+      <button class="ai-btn">💡 Explain</button>
+      <button class="ai-btn">🔧 Fix</button>
+      <button class="ai-btn">🧪 Gen Tests</button>
+      <span style="margin-left:auto;font-size:11px;color:var(--text-faint);font-family:var(--font-code)">Lines 7–13 selected</span>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <div class="ai-status-dot"></div>
+      <span class="chat-title">AI Assistant</span>
+      <button class="icon-btn">🗑</button>
+      <button class="icon-btn" onclick="toggleChat()">✕</button>
+    </div>
+    <div class="messages">
+      <div class="msg ai">
+        <div class="msg-bubble">
+          👋 Hello! I'm aware of your monorepo structure. I can help with backend routes, React components, shared utilities, or anything TypeScript. What are you working on?
+        </div>
+      </div>
+      <div class="msg user">
+        <div class="msg-bubble">
+          Add a GET /users route that returns a list of users using the User type from shared
+        </div>
+      </div>
+      <div class="msg ai">
+        <div class="msg-bubble">
+          Here's a typed <code style="font-family:var(--font-code);color:var(--accent)">/users</code> route using <code style="font-family:var(--font-code);color:var(--accent)">ApiResponse&lt;User[]&gt;</code> from shared:
+          <div class="code-block">
+            <div class="code-block-header">
+              <span>typescript · routes/api.ts</span>
+            </div>
+            <div class="code-block-body"><span class="kw">import</span> { <span class="import">User</span>, <span class="import">ApiResponse</span> } <span class="kw">from</span> <span class="str">'shared'</span>;
+
+<span class="kw">const</span> users: <span class="type">User</span>[] = [
+  { id: <span class="str">'1'</span>, name: <span class="str">'Alice'</span>, email: <span class="str">'alice@ex.com'</span> },
+];
+
+router.<span class="fn">get</span>(<span class="str">'/users'</span>, (_req, res) =&gt; {
+  <span class="kw">const</span> response: <span class="type">ApiResponse</span>&lt;<span class="type">User</span>[]&gt; = {
+    success: <span class="kw">true</span>, data: users,
+  };
+  res.<span class="fn">json</span>(response);
+});</div>
+            <div class="code-block-actions">
+              <button class="cb-btn">📋 Copy</button>
+              <button class="cb-btn insert">⤵ Insert to File</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="context-bar">
+      📎 api.ts : lines 7–13 (selected)
+      <span class="remove">✕</span>
+    </div>
+    <div class="chat-input-area">
+      <textarea class="chat-input" placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"></textarea>
+      <div class="input-actions">
+        <button class="ai-btn">📎 Attach</button>
+        <button class="ai-btn">🗑 Clear ctx</button>
+        <button class="send-btn">Send ↑</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-item">⎇ main</div>
+  <div class="status-item" style="color:var(--accent-red)">✖ 0</div>
+  <div class="status-item" style="color:var(--accent-yellow)">⚠ 2</div>
+  <div class="status-item">TypeScript 5.9</div>
+  <div class="status-item" style="font-size:10px;color:var(--text-faint)">Ctrl+B: Explorer &nbsp;|&nbsp; Ctrl+J: Chat &nbsp;|&nbsp; Ctrl+K: Palette</div>
+  <div class="status-item ai-ready" style="margin-left:auto">
+    <div class="status-dot" style="background:var(--accent-green)"></div>
+    AI Ready
+  </div>
+</div>
+
+<!-- MOBILE LAYOUT -->
+<div class="mobile-preview" id="mobile-preview">
+  <style>
+    .mobile-shell {
+      width: 375px;
+      height: calc(100vh - 44px - 24px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .mob-topbar {
+      height: 44px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+    }
+    .mob-content { flex: 1; overflow: hidden; position: relative; }
+    .mob-panel { position: absolute; inset: 0; overflow-y: auto; display: none; }
+    .mob-panel.active { display: block; }
+    .mob-bottom-tab {
+      height: 52px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      display: flex;
+    }
+    .mob-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      color: var(--text-faint);
+      font-size: 10px;
+      border: none;
+      background: none;
+    }
+    .mob-tab.active { color: var(--accent); }
+    .mob-tab .tab-icon { font-size: 18px; }
+    .mob-file-list { padding: 8px 0; }
+    .mob-file-item {
+      padding: 10px 16px;
+      font-family: var(--font-code);
+      font-size: 12px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mob-file-item.folder { color: var(--text-primary); font-family: var(--font-ui); font-weight: 500; }
+    .mob-editor { padding: 12px 0; font-family: var(--font-code); font-size: 12px; }
+    .mob-chat { display: flex; flex-direction: column; height: 100%; }
+    .mob-messages { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+    .mob-input-area { padding: 8px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+    .mob-input {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 14px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+    }
+    .mob-send {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+  <div class="mob-topbar">
+    <div class="logo-hex" style="width:20px;height:20px"></div>
+    <span style="font-weight:600;font-size:14px">CodeAI</span>
+    <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">api.ts</span>
+    <div class="avatar">S</div>
+  </div>
+  <div class="mob-content">
+    <!-- Files -->
+    <div class="mob-panel active" id="mob-files">
+      <div class="mob-file-list">
+        <div class="mob-file-item folder">▾ packages</div>
+        <div class="mob-file-item" style="padding-left:32px">▾ shared/src</div>
+        <div class="mob-file-item" style="padding-left:48px">📄 index.ts</div>
+        <div class="mob-file-item" style="padding-left:48px">📄 utils.ts</div>
+        <div class="mob-file-item" style="padding-left:48px">📄 types.ts</div>
+        <div class="mob-file-item folder" style="padding-left:32px">▾ backend/src</div>
+        <div class="mob-file-item" style="padding-left:48px">📄 index.ts</div>
+        <div class="mob-file-item" style="padding-left:48px;color:var(--accent)">📄 api.ts ●</div>
+        <div class="mob-file-item folder" style="padding-left:32px">▸ frontend</div>
+        <div class="mob-file-item folder" style="padding-left:32px">▸ mobile</div>
+        <div class="mob-file-item folder" style="padding-left:32px">▸ desktop</div>
+      </div>
+    </div>
+    <!-- Editor -->
+    <div class="mob-panel" id="mob-editor">
+      <div style="background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:6px 12px;font-family:var(--font-code);font-size:11px;color:var(--text-muted)">
+        📄 api.ts <span style="color:var(--accent-yellow)">●</span>
+      </div>
+      <div class="mob-editor">
+        <div class="code-line"><span class="line-num">1</span><span class="line-code"><span class="kw">import</span> { <span class="import">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>;</span></div>
+        <div class="code-line"><span class="line-num">2</span><span class="line-code"><span class="kw">import</span> { <span class="import">capitalize</span> } <span class="kw">from</span> <span class="str">'shared'</span>;</span></div>
+        <div class="code-line"><span class="line-num">3</span><span class="line-code"></span></div>
+        <div class="code-line highlighted"><span class="line-num">4</span><span class="line-code"><span class="fn">router</span>.<span class="fn">get</span>(<span class="str">'/hello'</span>, ...);</span></div>
+        <div class="code-line"><span class="line-num">5</span><span class="line-code"></span></div>
+        <div class="code-line"><span class="line-num">6</span><span class="line-code"><span class="kw">export default</span> router;</span></div>
+      </div>
+      <div style="padding:8px 12px;display:flex;gap:6px;border-top:1px solid var(--border)">
+        <button class="ai-btn primary" style="font-size:10.5px">🤖 Ask AI</button>
+        <button class="ai-btn" style="font-size:10.5px">💡 Explain</button>
+        <button class="ai-btn" style="font-size:10.5px">🔧 Fix</button>
+      </div>
+    </div>
+    <!-- Chat -->
+    <div class="mob-panel" id="mob-chat">
+      <div class="mob-chat" style="height:100%">
+        <div class="mob-messages">
+          <div class="msg ai"><div class="msg-bubble" style="font-size:12px">👋 How can I help with your code?</div></div>
+          <div class="msg user"><div class="msg-bubble" style="font-size:12px">Add a /users route</div></div>
+          <div class="msg ai">
+            <div class="msg-bubble" style="font-size:12px">
+              Here's the route:
+              <div class="code-block" style="margin-top:6px">
+                <div class="code-block-body" style="font-size:11px"><span class="kw">import</span> { <span class="import">User</span> } <span class="kw">from</span> <span class="str">'shared'</span>;
+router.<span class="fn">get</span>(<span class="str">'/users'</span>, (_, res) =&gt;
+  res.<span class="fn">json</span>({ success: <span class="kw">true</span>, data: [] })
+);</div>
+                <div class="code-block-actions">
+                  <button class="cb-btn">📋 Copy</button>
+                  <button class="cb-btn insert">⤵ Insert</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mob-input-area">
+          <input class="mob-input" placeholder="Ask anything…"/>
+          <button class="mob-send">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mob-bottom-tab">
+    <button class="mob-tab active" id="mob-tab-files" onclick="mobTab('files')">
+      <span class="tab-icon">📁</span>Files
+    </button>
+    <button class="mob-tab" id="mob-tab-editor" onclick="mobTab('editor')">
+      <span class="tab-icon">&lt;/&gt;</span>Editor
+    </button>
+    <button class="mob-tab" id="mob-tab-chat" onclick="mobTab('chat')">
+      <span class="tab-icon">🤖</span>Chat
+    </button>
+  </div>
+</div>
+
+<script>
+  function toggleExplorer() {
+    document.getElementById('explorer').classList.toggle('collapsed');
+  }
+  function toggleChat() {
+    document.getElementById('chat-panel').classList.toggle('collapsed');
+  }
+  function setView(v) {
+    document.querySelectorAll('.vs-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    if (v === 'mobile') {
+      document.getElementById('main-layout').style.display = 'none';
+      document.getElementById('mobile-preview').style.display = 'flex';
+      document.getElementById('mobile-preview').style.flexDirection = 'column';
+    } else {
+      document.getElementById('main-layout').style.display = 'flex';
+      document.getElementById('mobile-preview').style.display = 'none';
+    }
+  }
+  function mobTab(tab) {
+    document.querySelectorAll('.mob-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('mob-' + tab).classList.add('active');
+    document.getElementById('mob-tab-' + tab).classList.add('active');
+  }
+</script>
+</body>
+</html>
