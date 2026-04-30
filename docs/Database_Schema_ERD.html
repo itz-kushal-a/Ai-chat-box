@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Database Schema — AI Coding Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;
+  --bg2:#0e1320;
+  --bg3:#141c2e;
+  --bg4:#1a2438;
+  --border:#1f2f4a;
+  --border2:#2a4066;
+  --blue:#4f8ef7;
+  --cyan:#00d4ff;
+  --green:#00e5a0;
+  --yellow:#ffd166;
+  --red:#ff6b6b;
+  --purple:#c084fc;
+  --orange:#fb923c;
+  --text:#dde4f0;
+  --muted:#5a7499;
+  --faint:#0f1826;
+  --font:'Outfit',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
+
+/* star bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(79,142,247,.04) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 20%,rgba(0,212,255,.03) 0%,transparent 50%);
+  pointer-events:none;
+}
+
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* header */
+.header{
+  padding:14px 20px;display:flex;align-items:center;gap:14px;
+  border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;
+}
+.header h1{font-size:15px;font-weight:800;letter-spacing:-.3px;
+  background:linear-gradient(90deg,var(--cyan),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:auto}
+.tab-bar{display:flex;gap:4px;margin-left:20px}
+.tbtn{padding:5px 12px;border-radius:5px;font-size:11.5px;font-family:var(--font);font-weight:600;
+  border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;transition:all .15s}
+.tbtn:hover{color:var(--text)}
+.tbtn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* main split */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* sidebar */
+.sidebar{
+  width:200px;border-right:1px solid var(--border);background:var(--bg2);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+.sidebar-title{padding:12px 14px 6px;font-size:9px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--muted)}
+.table-btn{
+  margin:1px 8px;padding:8px 10px;border-radius:6px;
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  transition:all .15s;border:1px solid transparent;
+}
+.table-btn:hover{background:var(--bg3);border-color:var(--border)}
+.table-btn.active{background:var(--bg4);border-color:var(--border2)}
+.table-btn .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.table-btn .tname{font-size:12px;font-weight:600;font-family:var(--mono)}
+.table-btn .tcount{font-size:9px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+
+/* canvas area */
+.canvas{flex:1;overflow:auto;padding:24px;position:relative}
+
+/* erd layout */
+.erd{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(260px,1fr));
+  grid-template-rows:auto auto auto;
+  gap:20px;
+  min-width:820px;
+}
+
+/* table card */
+.tcard{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;transition:all .25s;cursor:pointer;
+}
+.tcard:hover{border-color:var(--border2);box-shadow:0 0 0 1px var(--border2),0 8px 32px rgba(0,0,0,.5)}
+.tcard.active{border-color:var(--card-color,var(--blue));
+  box-shadow:0 0 0 1px var(--card-color,var(--blue)),0 0 30px color-mix(in srgb,var(--card-color,var(--blue)) 15%,transparent)}
+.tcard.dimmed{opacity:.35;filter:grayscale(.5)}
+
+.thead{
+  padding:10px 14px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);
+  background:color-mix(in srgb,var(--card-color,var(--blue)) 8%,transparent);
+}
+.thead-icon{font-size:16px}
+.thead-name{font-size:13px;font-weight:700;font-family:var(--mono)}
+.thead-badge{
+  margin-left:auto;padding:2px 7px;border-radius:10px;font-size:9px;
+  font-weight:700;font-family:var(--mono);letter-spacing:.5px;
+  background:color-mix(in srgb,var(--card-color,var(--blue)) 20%,transparent);
+  color:var(--card-color,var(--blue));border:1px solid color-mix(in srgb,var(--card-color,var(--blue)) 40%,transparent);
+}
+
+.tbody{padding:6px 0}
+.col-row{
+  display:grid;grid-template-columns:16px 1fr auto;
+  gap:6px;align-items:center;padding:4px 14px;
+  font-family:var(--mono);font-size:11px;
+  transition:background .1s;
+}
+.col-row:hover{background:var(--bg3)}
+.col-key{font-size:9px;text-align:center}
+.col-name{font-weight:500;color:var(--text)}
+.col-name.pk{color:var(--yellow)}
+.col-name.fk{color:var(--cyan)}
+.col-name.nullable{color:var(--muted)}
+.col-type{color:var(--muted);font-size:10px}
+.col-type.uuid{color:var(--purple)}
+.col-type.ts{color:var(--blue)}
+.col-type.int{color:var(--green)}
+.col-type.bool{color:var(--orange)}
+.col-type.text{color:var(--red)}
+.col-type.json{color:var(--cyan)}
+.sep{height:1px;background:var(--border);margin:4px 0}
+
+/* relation lines overlay - using CSS only arrows between cards */
+.rel-indicator{
+  display:flex;align-items:center;gap:6px;padding:4px 14px 8px;
+  font-size:9.5px;font-family:var(--mono);color:var(--muted);flex-wrap:wrap;
+}
+.rel-chip{
+  padding:2px 7px;border-radius:10px;
+  background:var(--faint);border:1px solid var(--border);
+  color:var(--muted);font-size:9px;cursor:pointer;transition:all .15s;
+}
+.rel-chip:hover{border-color:var(--blue);color:var(--blue)}
+
+/* detail panel */
+.detail{
+  position:fixed;right:0;top:0;bottom:0;width:320px;
+  background:var(--bg2);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:100;
+  transform:translateX(100%);transition:transform .25s ease;
+}
+.detail.open{transform:translateX(0)}
+.detail-hdr{
+  padding:16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.detail-title{font-size:14px;font-weight:700;font-family:var(--mono)}
+.detail-close{margin-left:auto;background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:18px;line-height:1;padding:2px}
+.detail-close:hover{color:var(--text)}
+.detail-body{padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px}
+.detail-section-title{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px}
+.col-detail{
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:8px 10px;display:flex;flex-direction:column;gap:3px;margin-bottom:4px;
+}
+.cd-row{display:flex;justify-content:space-between;align-items:center;font-size:11px}
+.cd-key{color:var(--muted);font-family:var(--mono)}
+.cd-val{font-family:var(--mono);font-weight:500;font-size:11px}
+.example-block{
+  background:var(--faint);border:1px solid var(--border);border-radius:6px;
+  padding:10px;font-family:var(--mono);font-size:10.5px;line-height:1.7;
+  color:var(--green);overflow-x:auto;
+}
+
+/* legend */
+.legend{
+  padding:10px 20px;border-top:1px solid var(--border);
+  display:flex;gap:16px;flex-wrap:wrap;flex-shrink:0;background:var(--bg2);
+}
+.leg{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted)}
+.leg-box{width:10px;height:10px;border-radius:2px}
+.leg-sym{font-family:var(--mono);font-size:11px}
+
+/* tab views */
+.view{display:none}
+.view.active{display:block}
+#view-data{padding:20px;overflow:auto;height:100%}
+.example-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-bottom:24px}
+.example-table caption{text-align:left;font-size:12px;font-weight:700;padding:0 0 8px;color:var(--text);font-family:var(--font)}
+.example-table th{background:var(--bg3);border:1px solid var(--border);padding:6px 10px;
+  color:var(--muted);font-weight:600;text-align:left;font-size:10px;letter-spacing:.5px;text-transform:uppercase}
+.example-table td{border:1px solid var(--border);padding:6px 10px;color:var(--text);vertical-align:top}
+.example-table tr:hover td{background:var(--bg3)}
+.null-val{color:var(--muted);font-style:italic}
+.pk-val{color:var(--yellow)}
+.fk-val{color:var(--cyan)}
+
+#view-sql{padding:20px;overflow:auto;height:100%}
+.sql-block{
+  background:var(--faint);border:1px solid var(--border);border-radius:8px;
+  padding:14px;font-family:var(--mono);font-size:11.5px;line-height:1.8;
+  margin-bottom:18px;white-space:pre;overflow-x:auto;
+}
+.sql-comment{color:var(--muted)}
+.sql-kw{color:var(--blue);font-weight:600}
+.sql-type{color:var(--purple)}
+.sql-str{color:var(--green)}
+.sql-fn{color:var(--cyan)}
+.sql-table-name{color:var(--yellow);font-weight:600}
+.sql-section{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;font-family:var(--font)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <h1>⬡ Database Schema</h1>
+  <div class="tab-bar">
+    <button class="tbtn on" onclick="setView('erd',this)">ERD</button>
+    <button class="tbtn" onclick="setView('data',this)">Sample Data</button>
+    <button class="tbtn" onclick="setView('sql',this)">SQL</button>
+  </div>
+  <p>PostgreSQL 16 · 7 tables · Click any table to inspect</p>
+</div>
+
+<div class="body">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-title">Tables</div>
+  <div class="table-btn" onclick="focusTable('users')" id="sb-users">
+    <div class="dot" style="background:#ffd166"></div>
+    <span class="tname">users</span><span class="tcount">10 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('projects')" id="sb-projects">
+    <div class="dot" style="background:#4f8ef7"></div>
+    <span class="tname">projects</span><span class="tcount">11 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('project_members')" id="sb-project_members">
+    <div class="dot" style="background:#00d4ff"></div>
+    <span class="tname">project_members</span><span class="tcount">5 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('files')" id="sb-files">
+    <div class="dot" style="background:#00e5a0"></div>
+    <span class="tname">files</span><span class="tcount">13 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('file_versions')" id="sb-file_versions">
+    <div class="dot" style="background:#fb923c"></div>
+    <span class="tname">file_versions</span><span class="tcount">8 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('conversations')" id="sb-conversations">
+    <div class="dot" style="background:#c084fc"></div>
+    <span class="tname">conversations</span><span class="tcount">10 cols</span>
+  </div>
+  <div class="table-btn" onclick="focusTable('messages')" id="sb-messages">
+    <div class="dot" style="background:#ff6b6b"></div>
+    <span class="tname">messages</span><span class="tcount">10 cols</span>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div class="canvas" id="view-erd">
+<div class="erd">
+
+  <!-- USERS -->
+  <div class="tcard" id="tc-users" style="--card-color:#ffd166;grid-column:2;grid-row:1" onclick="openDetail('users')">
+    <div class="thead"><span class="thead-icon">👤</span><span class="thead-name">users</span><span class="thead-badge">ROOT</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">github_id</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">email</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">name</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">plan</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">ai_tokens_used</span><span class="col-type int">INT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">last_login_at</span><span class="col-type ts">TIMESTAMPTZ</span></div>
+    </div>
+    <div class="rel-indicator">
+      <span>→</span>
+      <span class="rel-chip" onclick="e=>e.stopPropagation();focusTable('projects')">projects</span>
+      <span class="rel-chip" onclick="e=>e.stopPropagation();focusTable('conversations')">conversations</span>
+    </div>
+  </div>
+
+  <!-- PROJECTS -->
+  <div class="tcard" id="tc-projects" style="--card-color:#4f8ef7;grid-column:1;grid-row:2" onclick="openDetail('projects')">
+    <div class="thead"><span class="thead-icon">📦</span><span class="thead-name">projects</span><span class="thead-badge">owner_id→users</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">owner_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">name</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">slug</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">visibility</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">language_stats</span><span class="col-type json">JSONB</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">archived_at</span><span class="col-type ts">TIMESTAMPTZ</span></div>
+    </div>
+    <div class="rel-indicator">
+      <span>→</span>
+      <span class="rel-chip">files</span>
+      <span class="rel-chip">project_members</span>
+    </div>
+  </div>
+
+  <!-- PROJECT_MEMBERS -->
+  <div class="tcard" id="tc-project_members" style="--card-color:#00d4ff;grid-column:2;grid-row:2" onclick="openDetail('project_members')">
+    <div class="thead"><span class="thead-icon">👥</span><span class="thead-name">project_members</span><span class="thead-badge">JOIN</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">project_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">user_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">role</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk nullable">invited_by</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">joined_at</span><span class="col-type ts">TIMESTAMPTZ</span></div>
+    </div>
+    <div class="rel-indicator"><span style="color:var(--cyan)">PK: (project_id, user_id)</span></div>
+  </div>
+
+  <!-- FILES -->
+  <div class="tcard" id="tc-files" style="--card-color:#00e5a0;grid-column:1;grid-row:3" onclick="openDetail('files')">
+    <div class="thead"><span class="thead-icon">📄</span><span class="thead-name">files</span><span class="thead-badge">project_id→projects</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">project_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">created_by</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">path</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">language</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">is_directory</span><span class="col-type bool">BOOLEAN</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">deleted_at</span><span class="col-type ts">TIMESTAMPTZ</span></div>
+    </div>
+    <div class="rel-indicator"><span>→</span><span class="rel-chip">file_versions</span></div>
+  </div>
+
+  <!-- FILE_VERSIONS -->
+  <div class="tcard" id="tc-file_versions" style="--card-color:#fb923c;grid-column:2;grid-row:3" onclick="openDetail('file_versions')">
+    <div class="thead"><span class="thead-icon">📜</span><span class="thead-name">file_versions</span><span class="thead-badge">file_id→files</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">file_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">saved_by</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">version</span><span class="col-type int">INTEGER</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">content</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">diff</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">message</span><span class="col-type text">VARCHAR</span></div>
+    </div>
+    <div class="rel-indicator"><span style="color:var(--orange)">UNIQUE: (file_id, version)</span></div>
+  </div>
+
+  <!-- CONVERSATIONS -->
+  <div class="tcard" id="tc-conversations" style="--card-color:#c084fc;grid-column:3;grid-row:2" onclick="openDetail('conversations')">
+    <div class="thead"><span class="thead-icon">💬</span><span class="thead-name">conversations</span><span class="thead-badge">user_id→users</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">user_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk nullable">project_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk nullable">file_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">title</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">model</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">total_tokens</span><span class="col-type int">INTEGER</span></div>
+    </div>
+    <div class="rel-indicator"><span>→</span><span class="rel-chip">messages</span></div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div class="tcard" id="tc-messages" style="--card-color:#ff6b6b;grid-column:3;grid-row:3" onclick="openDetail('messages')">
+    <div class="thead"><span class="thead-icon">✉</span><span class="thead-name">messages</span><span class="thead-badge">conversation_id→conv.</span></div>
+    <div class="tbody">
+      <div class="col-row"><span class="col-key">🔑</span><span class="col-name pk">id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key">🔗</span><span class="col-name fk">conversation_id</span><span class="col-type uuid">UUID</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">role</span><span class="col-type text">VARCHAR</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">content</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">selected_code</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">file_context</span><span class="col-type text">TEXT</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name">prompt_tokens</span><span class="col-type int">INTEGER</span></div>
+      <div class="col-row"><span class="col-key"></span><span class="col-name nullable">latency_ms</span><span class="col-type int">INTEGER</span></div>
+    </div>
+  </div>
+
+</div><!-- end erd -->
+</div><!-- end canvas -->
+
+<!-- DATA TAB -->
+<div class="view" id="view-data">
+  <table class="example-table"><caption>users</caption>
+    <tr><th>id</th><th>github_id</th><th>name</th><th>email</th><th>plan</th><th>ai_tokens_used</th></tr>
+    <tr><td class="pk-val">a1b2...0001</td><td>12345678</td><td>Shivanshi</td><td>shivanshi@example.com</td><td>pro</td><td>24,300</td></tr>
+    <tr><td class="pk-val">a1b2...0002</td><td>87654321</td><td>Parag</td><td>parag@example.com</td><td>free</td><td>4,100</td></tr>
+  </table>
+  <table class="example-table"><caption>projects</caption>
+    <tr><th>id</th><th>owner_id</th><th>name</th><th>slug</th><th>visibility</th><th>language_stats</th></tr>
+    <tr><td class="pk-val">b2c3...0002</td><td class="fk-val">a1b2...0001</td><td>my-monorepo</td><td>my-monorepo</td><td>private</td><td>{"TypeScript":92}</td></tr>
+    <tr><td class="pk-val">b2c3...0003</td><td class="fk-val">a1b2...0001</td><td>portfolio</td><td>portfolio</td><td>public</td><td>{"React":80}</td></tr>
+  </table>
+  <table class="example-table"><caption>project_members</caption>
+    <tr><th>project_id</th><th>user_id</th><th>role</th><th>joined_at</th></tr>
+    <tr><td class="fk-val">b2c3...0002</td><td class="fk-val">a1b2...0001</td><td>owner</td><td>2026-01-15</td></tr>
+    <tr><td class="fk-val">b2c3...0002</td><td class="fk-val">a1b2...0002</td><td>editor</td><td>2026-02-10</td></tr>
+  </table>
+  <table class="example-table"><caption>files</caption>
+    <tr><th>id</th><th>project_id</th><th>path</th><th>language</th><th>version</th><th>size_bytes</th></tr>
+    <tr><td class="pk-val">c3d4...0003</td><td class="fk-val">b2c3...0002</td><td>packages/backend/src/routes/api.ts</td><td>TypeScript</td><td>3</td><td>420</td></tr>
+    <tr><td class="pk-val">c3d4...0004</td><td class="fk-val">b2c3...0002</td><td>packages/shared/src/utils.ts</td><td>TypeScript</td><td>1</td><td>180</td></tr>
+  </table>
+  <table class="example-table"><caption>conversations</caption>
+    <tr><th>id</th><th>user_id</th><th>project_id</th><th>title</th><th>total_tokens</th><th>message_count</th></tr>
+    <tr><td class="pk-val">d4e5...0004</td><td class="fk-val">a1b2...0001</td><td class="fk-val">b2c3...0002</td><td>Add GET /users route</td><td>1,840</td><td>4</td></tr>
+  </table>
+  <table class="example-table"><caption>messages</caption>
+    <tr><th>id</th><th>conversation_id</th><th>role</th><th>content (truncated)</th><th>prompt_tokens</th><th>latency_ms</th></tr>
+    <tr><td class="pk-val">e5f6...0005</td><td class="fk-val">d4e5...0004</td><td>user</td><td>Add a GET /users route...</td><td>0</td><td class="null-val">null</td></tr>
+    <tr><td class="pk-val">f6a7...0006</td><td class="fk-val">d4e5...0004</td><td>assistant</td><td>Here's the typed route...</td><td>820</td><td>1,240</td></tr>
+  </table>
+</div>
+
+<!-- SQL TAB -->
+<div class="view" id="view-sql">
+  <div class="sql-section">Migration Order</div>
+  <div class="sql-block"><span class="sql-comment">-- Run in this order to satisfy FK constraints</span>
+<span class="sql-comment">-- 1. users  2. projects  3. project_members</span>
+<span class="sql-comment">-- 4. files  5. file_versions  6. conversations  7. messages</span></div>
+
+  <div class="sql-section">users</div>
+  <div class="sql-block"><span class="sql-kw">CREATE TABLE</span> <span class="sql-table-name">users</span> (
+  id               <span class="sql-type">UUID</span>         <span class="sql-kw">PRIMARY KEY DEFAULT</span> <span class="sql-fn">gen_random_uuid()</span>,
+  github_id        <span class="sql-type">VARCHAR(50)</span>  <span class="sql-kw">UNIQUE NOT NULL</span>,
+  email            <span class="sql-type">VARCHAR(255)</span> <span class="sql-kw">UNIQUE NOT NULL</span>,
+  name             <span class="sql-type">VARCHAR(255)</span> <span class="sql-kw">NOT NULL</span>,
+  plan             <span class="sql-type">VARCHAR(20)</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-str">'free'</span>,
+  ai_tokens_used   <span class="sql-type">INTEGER</span>      <span class="sql-kw">NOT NULL DEFAULT</span> 0,
+  ai_tokens_limit  <span class="sql-type">INTEGER</span>      <span class="sql-kw">NOT NULL DEFAULT</span> 100000,
+  created_at       <span class="sql-type">TIMESTAMPTZ</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">now()</span>,
+  last_login_at    <span class="sql-type">TIMESTAMPTZ</span>
+);</div>
+
+  <div class="sql-section">projects</div>
+  <div class="sql-block"><span class="sql-kw">CREATE TABLE</span> <span class="sql-table-name">projects</span> (
+  id             <span class="sql-type">UUID</span>         <span class="sql-kw">PRIMARY KEY DEFAULT</span> <span class="sql-fn">gen_random_uuid()</span>,
+  owner_id       <span class="sql-type">UUID</span>         <span class="sql-kw">NOT NULL REFERENCES</span> <span class="sql-table-name">users</span>(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+  name           <span class="sql-type">VARCHAR(255)</span> <span class="sql-kw">NOT NULL</span>,
+  slug           <span class="sql-type">VARCHAR(255)</span> <span class="sql-kw">NOT NULL</span>,
+  visibility     <span class="sql-type">VARCHAR(20)</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-str">'private'</span>,
+  language_stats <span class="sql-type">JSONB</span>,
+  archived_at    <span class="sql-type">TIMESTAMPTZ</span>,
+  created_at     <span class="sql-type">TIMESTAMPTZ</span>  <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">now()</span>
+);
+<span class="sql-kw">CREATE UNIQUE INDEX</span> idx_projects_owner_slug <span class="sql-kw">ON</span> <span class="sql-table-name">projects</span>(owner_id, slug);</div>
+
+  <div class="sql-section">files</div>
+  <div class="sql-block"><span class="sql-kw">CREATE TABLE</span> <span class="sql-table-name">files</span> (
+  id           <span class="sql-type">UUID</span>         <span class="sql-kw">PRIMARY KEY DEFAULT</span> <span class="sql-fn">gen_random_uuid()</span>,
+  project_id   <span class="sql-type">UUID</span>         <span class="sql-kw">NOT NULL REFERENCES</span> <span class="sql-table-name">projects</span>(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+  created_by   <span class="sql-type">UUID</span>         <span class="sql-kw">NOT NULL REFERENCES</span> <span class="sql-table-name">users</span>(id),
+  path         <span class="sql-type">TEXT</span>         <span class="sql-kw">NOT NULL</span>,
+  language     <span class="sql-type">VARCHAR(100)</span>,
+  content      <span class="sql-type">TEXT</span>,
+  is_directory <span class="sql-type">BOOLEAN</span>      <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-str">false</span>,
+  version      <span class="sql-type">INTEGER</span>      <span class="sql-kw">NOT NULL DEFAULT</span> 1,
+  deleted_at   <span class="sql-type">TIMESTAMPTZ</span>
+);
+<span class="sql-kw">CREATE UNIQUE INDEX</span> idx_files_project_path
+  <span class="sql-kw">ON</span> <span class="sql-table-name">files</span>(project_id, path) <span class="sql-kw">WHERE</span> deleted_at <span class="sql-kw">IS NULL</span>;</div>
+
+  <div class="sql-section">messages</div>
+  <div class="sql-block"><span class="sql-kw">CREATE TABLE</span> <span class="sql-table-name">messages</span> (
+  id                <span class="sql-type">UUID</span>        <span class="sql-kw">PRIMARY KEY DEFAULT</span> <span class="sql-fn">gen_random_uuid()</span>,
+  conversation_id   <span class="sql-type">UUID</span>        <span class="sql-kw">NOT NULL REFERENCES</span> <span class="sql-table-name">conversations</span>(id) <span class="sql-kw">ON DELETE CASCADE</span>,
+  role              <span class="sql-type">VARCHAR(20)</span> <span class="sql-kw">NOT NULL</span>,  <span class="sql-comment">-- user | assistant | system</span>
+  content           <span class="sql-type">TEXT</span>        <span class="sql-kw">NOT NULL</span>,
+  selected_code     <span class="sql-type">TEXT</span>,
+  file_context      <span class="sql-type">TEXT</span>,
+  prompt_tokens     <span class="sql-type">INTEGER</span>     <span class="sql-kw">NOT NULL DEFAULT</span> 0,
+  completion_tokens <span class="sql-type">INTEGER</span>     <span class="sql-kw">NOT NULL DEFAULT</span> 0,
+  latency_ms        <span class="sql-type">INTEGER</span>,
+  created_at        <span class="sql-type">TIMESTAMPTZ</span> <span class="sql-kw">NOT NULL DEFAULT</span> <span class="sql-fn">now()</span>
+);</div>
+</div>
+
+</div><!-- end body -->
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="leg"><span class="leg-sym" style="color:#ffd166">🔑</span>Primary Key</div>
+  <div class="leg"><span class="leg-sym" style="color:#00d4ff">🔗</span>Foreign Key</div>
+  <div class="leg"><div class="leg-box" style="background:#c084fc"></div><span style="font-family:var(--mono);font-size:10.5px">UUID</span></div>
+  <div class="leg"><div class="leg-box" style="background:#ff6b6b"></div><span style="font-family:var(--mono);font-size:10.5px">TEXT/VARCHAR</span></div>
+  <div class="leg"><div class="leg-box" style="background:#00e5a0"></div><span style="font-family:var(--mono);font-size:10.5px">INTEGER</span></div>
+  <div class="leg"><div class="leg-box" style="background:#4f8ef7"></div><span style="font-family:var(--mono);font-size:10.5px">TIMESTAMPTZ</span></div>
+  <div class="leg"><div class="leg-box" style="background:#fb923c"></div><span style="font-family:var(--mono);font-size:10.5px">BOOLEAN</span></div>
+  <div class="leg"><div class="leg-box" style="background:#00d4ff"></div><span style="font-family:var(--mono);font-size:10.5px">JSONB</span></div>
+  <div class="leg" style="margin-left:auto"><span style="color:var(--muted);font-size:10.5px;font-family:var(--mono)">italic = nullable</span></div>
+</div>
+
+</div><!-- end app -->
+
+<!-- DETAIL PANEL -->
+<div class="detail" id="detail">
+  <div class="detail-hdr">
+    <span class="detail-title" id="d-title">—</span>
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-body" id="d-body"></div>
+</div>
+
+<script>
+const tableData = {
+  users:{icon:'👤',color:'#ffd166',desc:'Stores all registered users. Auth via GitHub OAuth — no passwords.',cols:[
+    {n:'id',t:'UUID',k:'PK',note:'Auto-generated'},{n:'github_id',t:'VARCHAR(50)',k:'UQ',note:'From OAuth'},{n:'email',t:'VARCHAR(255)',k:'UQ'},{n:'name',t:'VARCHAR(255)',k:''},{n:'avatar_url',t:'TEXT',k:'?',note:'Nullable'},{n:'plan',t:'VARCHAR(20)',k:'',note:'free|pro|team'},{n:'ai_tokens_used',t:'INTEGER',k:'',note:'Running total'},{n:'ai_tokens_limit',t:'INTEGER',k:'',note:'Monthly cap'},{n:'created_at',t:'TIMESTAMPTZ',k:''},{n:'last_login_at',t:'TIMESTAMPTZ',k:'?'}
+  ],example:{id:'a1b2...0001',github_id:'12345678',email:'shivanshi@example.com',plan:'pro',ai_tokens_used:24300}},
+  projects:{icon:'📦',color:'#4f8ef7',desc:'A workspace/monorepo. Owned by a user. Other users can be added as collaborators via project_members.',cols:[
+    {n:'id',t:'UUID',k:'PK'},{n:'owner_id',t:'UUID',k:'FK',note:'→ users.id'},{n:'name',t:'VARCHAR(255)',k:''},{n:'slug',t:'VARCHAR(255)',k:'UQ',note:'Per owner'},{n:'description',t:'TEXT',k:'?'},{n:'visibility',t:'VARCHAR(20)',k:'',note:'private|public'},{n:'root_path',t:'TEXT',k:'?',note:'Local dev path'},{n:'s3_prefix',t:'TEXT',k:'?',note:'Prod S3 key'},{n:'default_branch',t:'VARCHAR(100)',k:''},{n:'language_stats',t:'JSONB',k:'?'},{n:'archived_at',t:'TIMESTAMPTZ',k:'?',note:'Soft delete'}
+  ],example:{name:'my-monorepo',slug:'my-monorepo',visibility:'private',language_stats:'{"TypeScript":92}'}},
+  project_members:{icon:'👥',color:'#00d4ff',desc:'Many-to-many join table. A user can belong to many projects with different roles.',cols:[
+    {n:'project_id',t:'UUID',k:'PK+FK',note:'→ projects.id'},{n:'user_id',t:'UUID',k:'PK+FK',note:'→ users.id'},{n:'role',t:'VARCHAR(20)',k:'',note:'owner|editor|viewer'},{n:'invited_by',t:'UUID',k:'FK?',note:'→ users.id'},{n:'joined_at',t:'TIMESTAMPTZ',k:''}
+  ],example:{role:'editor',joined_at:'2026-02-10'}},
+  files:{icon:'📄',color:'#00e5a0',desc:'Every file and directory in a project. Current content stored here. Full history in file_versions. Soft-deleted with deleted_at.',cols:[
+    {n:'id',t:'UUID',k:'PK'},{n:'project_id',t:'UUID',k:'FK',note:'→ projects.id'},{n:'created_by',t:'UUID',k:'FK',note:'→ users.id'},{n:'path',t:'TEXT',k:'UQ',note:'Unique per project'},{n:'name',t:'VARCHAR(255)',k:''},{n:'extension',t:'VARCHAR(50)',k:'?'},{n:'language',t:'VARCHAR(100)',k:'?'},{n:'content',t:'TEXT',k:'?'},{n:'size_bytes',t:'INTEGER',k:''},{n:'is_directory',t:'BOOLEAN',k:''},{n:'parent_path',t:'TEXT',k:'?'},{n:'version',t:'INTEGER',k:''},{n:'deleted_at',t:'TIMESTAMPTZ',k:'?',note:'Soft delete'}
+  ],example:{path:'packages/backend/src/routes/api.ts',language:'TypeScript',version:3,size_bytes:420}},
+  file_versions:{icon:'📜',color:'#fb923c',desc:'Immutable audit log of every file save. Enables diff view and rollback. version is unique per file.',cols:[
+    {n:'id',t:'UUID',k:'PK'},{n:'file_id',t:'UUID',k:'FK',note:'→ files.id'},{n:'saved_by',t:'UUID',k:'FK',note:'→ users.id'},{n:'version',t:'INTEGER',k:'UQ',note:'Per file'},{n:'content',t:'TEXT',k:''},{n:'diff',t:'TEXT',k:'?',note:'Unified diff'},{n:'size_bytes',t:'INTEGER',k:''},{n:'message',t:'VARCHAR(500)',k:'?'}
+  ],example:{version:3,diff:'@@ -1,3 +1,5 @@\n import {Router}...',message:'Added /users route'}},
+  conversations:{icon:'💬',color:'#c084fc',desc:'One chat session. Optionally linked to a project and/or file for context. Tracks model used and total token spend.',cols:[
+    {n:'id',t:'UUID',k:'PK'},{n:'user_id',t:'UUID',k:'FK',note:'→ users.id'},{n:'project_id',t:'UUID',k:'FK?',note:'→ projects.id'},{n:'file_id',t:'UUID',k:'FK?',note:'→ files.id'},{n:'title',t:'VARCHAR(500)',k:'?',note:'Auto-generated'},{n:'model',t:'VARCHAR(100)',k:''},{n:'total_tokens',t:'INTEGER',k:''},{n:'message_count',t:'INTEGER',k:''},{n:'created_at',t:'TIMESTAMPTZ',k:''},{n:'archived_at',t:'TIMESTAMPTZ',k:'?'}
+  ],example:{title:'Add GET /users route',model:'claude-sonnet-4',total_tokens:1840,message_count:4}},
+  messages:{icon:'✉',color:'#ff6b6b',desc:'Every message in a conversation. Stores user messages and AI responses with full token and latency metadata.',cols:[
+    {n:'id',t:'UUID',k:'PK'},{n:'conversation_id',t:'UUID',k:'FK',note:'→ conversations.id'},{n:'role',t:'VARCHAR(20)',k:'',note:'user|assistant|system'},{n:'content',t:'TEXT',k:''},{n:'selected_code',t:'TEXT',k:'?',note:'Attached snippet'},{n:'file_context',t:'TEXT',k:'?',note:'Active file path'},{n:'prompt_tokens',t:'INTEGER',k:''},{n:'completion_tokens',t:'INTEGER',k:''},{n:'latency_ms',t:'INTEGER',k:'?'},{n:'model',t:'VARCHAR(100)',k:'?'}
+  ],example:{role:'assistant',prompt_tokens:820,completion_tokens:340,latency_ms:1240}},
+};
+
+function openDetail(key){
+  const t=tableData[key];if(!t)return;
+  document.querySelectorAll('.tcard').forEach(c=>c.classList.remove('active','dimmed'));
+  document.getElementById('tc-'+key).classList.add('active');
+
+  document.getElementById('d-title').innerHTML=`${t.icon} ${key}`;
+  let html=`<div><div class="detail-section-title">Description</div><div style="font-size:12px;color:var(--muted);line-height:1.6">${t.desc}</div></div>`;
+  html+=`<div><div class="detail-section-title">Columns (${t.cols.length})</div>`;
+  t.cols.forEach(c=>{
+    html+=`<div class="col-detail"><div class="cd-row"><span class="cd-key">${c.n}</span><span class="cd-val" style="color:${c.k.includes('PK')?'#ffd166':c.k.includes('FK')?'#00d4ff':'var(--text)'}">${c.k||''}</span></div><div class="cd-row"><span class="cd-key">${c.t}</span><span style="font-size:10px;color:var(--muted)">${c.note||''}</span></div></div>`;
+  });
+  html+=`</div><div><div class="detail-section-title">Example Row</div><div class="example-block">${JSON.stringify(t.example,null,2)}</div></div>`;
+  document.getElementById('d-body').innerHTML=html;
+  document.getElementById('detail').classList.add('open');
+
+  document.querySelectorAll('.table-btn').forEach(b=>b.classList.remove('active'));
+  const sb=document.getElementById('sb-'+key);if(sb)sb.classList.add('active');
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('open');
+  document.querySelectorAll('.tcard').forEach(c=>c.classList.remove('active','dimmed'));
+  document.querySelectorAll('.table-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function focusTable(key){
+  openDetail(key);
+  const el=document.getElementById('tc-'+key);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function setView(v,btn){
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('view-erd').style.display=v==='erd'?'block':'none';
+  document.getElementById('view-data').style.display=v==='data'?'block':'none';
+  document.getElementById('view-sql').style.display=v==='sql'?'block':'none';
+  if(v!=='erd')closeDetail();
+}
+</script>
+</body>
+</html>
