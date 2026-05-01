@@ -21,7 +21,7 @@ A full-stack AI-powered coding assistant built as a TypeScript monorepo using np
 ### 1. Clone the repo
 ```bash
 git clone https://github.com/itz-kushal-a/Ai-chat-box.git
-cd my-monorepo
+cd Ai-chat-box
 ```
 
 ### 2. Install dependencies
