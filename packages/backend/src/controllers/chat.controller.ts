@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { callAI, streamAI, buildMessages } from '../services/ai.service';
-import { buildChatSystemPrompt } from '../services/context.service';
+import { callAI, streamAI, buildMessages, checkAIHealth } from '../services/ai.service';
+import { PromptTemplates, buildTitlePrompt } from '../services/prompt.service';
+import { parseChatResponse, parseTitleResponse, formatSSEChunk, formatSSEDone, formatSSEError, ok } from '../services/response.service';
+import { getOrCreate, appendMessage, getHistory, updateTitle, getUserConversations, deleteConversation } from '../services/conversation.service';
 import { recordUsage, hasTokenBudget } from '../services/token.service';
 import { AppError } from '../middleware/error.middleware';
 import { ChatRequest, ChatResponse, ApiResponse } from '../types';
@@ -17,33 +18,40 @@ export async function chat(req: Request, res: Response, next: NextFunction) {
     const userId = req.user?.userId ?? 'anonymous';
     const plan   = req.user?.plan   ?? 'free';
 
-    // Token budget check
     if (!hasTokenBudget(userId, plan)) {
       throw new AppError(429, 'Monthly AI token limit reached. Upgrade your plan for more.', 'TOKEN_LIMIT');
     }
 
-    const convId  = conversationId ?? uuidv4();
-    const system  = buildChatSystemPrompt({ filePath, selectedCode });
-    const messages = buildMessages(message, history);
+    // Get or create conversation (memory layer)
+    const conv    = getOrCreate(conversationId, userId, filePath);
+    const convHistory = getHistory(conv.id);
+
+    // Build prompts from templates
+    const system   = PromptTemplates.chat.system({ filePath, selectedCode });
+    const userMsg  = PromptTemplates.chat.user({ message });
+    const messages = buildMessages(userMsg, history.length ? history : convHistory);
+
+    // Save user message
+    appendMessage(conv.id, { role: 'user', content: message });
 
     // ── Streaming response ──────────────────────────────────────────────────
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Conversation-Id', convId);
+      res.setHeader('X-Conversation-Id', conv.id);
 
-      let totalContent = '';
+      let fullReply = '';
       try {
         for await (const chunk of streamAI({ system, messages })) {
-          totalContent += chunk;
-          res.write(`data: ${JSON.stringify({ chunk, conversationId: convId })}\n\n`);
+          fullReply += chunk;
+          res.write(formatSSEChunk({ chunk, conversationId: conv.id }));
         }
-        res.write(`data: ${JSON.stringify({ done: true, conversationId: convId })}\n\n`);
+        appendMessage(conv.id, { role: 'assistant', content: fullReply });
+        res.write(formatSSEDone(conv.id));
         res.end();
-        logger.debug('Stream completed', { userId, convId, chars: totalContent.length });
-      } catch (streamErr) {
-        res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+      } catch {
+        res.write(formatSSEError('Stream interrupted — please retry'));
         res.end();
       }
       return;
@@ -51,32 +59,68 @@ export async function chat(req: Request, res: Response, next: NextFunction) {
 
     // ── Standard response ───────────────────────────────────────────────────
     const ai = await callAI({ system, messages });
+    const parsed = parseChatResponse(ai.content);
 
+    // Save assistant message
+    appendMessage(conv.id, { role: 'assistant', content: parsed.reply }, ai.promptTokens + ai.completionTokens);
     recordUsage(userId, plan, ai.promptTokens, ai.completionTokens);
 
+    // Auto-generate title from first message
+    if (conv.messages.length === 2) {
+      try {
+        const { system: tSys, userMsg: tMsg } = buildTitlePrompt(message);
+        const titleAI = await callAI({ system: tSys, messages: [{ role: 'user', content: tMsg }], maxTokens: 20 });
+        updateTitle(conv.id, parseTitleResponse(titleAI.content));
+      } catch {
+        // Non-critical — title generation failing shouldn't break the response
+      }
+    }
+
     const data: ChatResponse = {
-      reply:            ai.content,
-      conversationId:   convId,
+      reply:            parsed.reply,
+      conversationId:   conv.id,
       promptTokens:     ai.promptTokens,
       completionTokens: ai.completionTokens,
       latencyMs:        ai.latencyMs,
     };
 
-    logger.info('Chat completed', { userId, convId, tokens: ai.promptTokens + ai.completionTokens, ms: ai.latencyMs });
+    logger.info('Chat completed', { userId, convId: conv.id, tokens: ai.promptTokens + ai.completionTokens, ms: ai.latencyMs });
 
-    const response: ApiResponse<ChatResponse> = { success: true, data };
-    res.status(200).json(response);
+    res.status(200).json(ok(data));
   } catch (err) {
     next(err);
   }
 }
 
+// ─── GET /api/chat/conversations ──────────────────────────────────────────────
+
+export function listConversations(req: Request, res: Response) {
+  const userId = req.user?.userId ?? 'anonymous';
+  const convs = getUserConversations(userId).map(c => ({
+    id:           c.id,
+    title:        c.title,
+    messageCount: c.messages.length,
+    totalTokens:  c.totalTokens,
+    filePath:     c.filePath,
+    createdAt:    c.createdAt,
+    updatedAt:    c.updatedAt,
+  }));
+  res.json(ok(convs));
+}
+
+// ─── DELETE /api/chat/conversations/:id ───────────────────────────────────────
+
+export function deleteConv(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user?.userId ?? 'anonymous';
+  const deleted = deleteConversation(req.params.id, userId);
+  if (!deleted) return next(new AppError(404, 'Conversation not found', 'NOT_FOUND'));
+  res.json(ok({ deleted: true }));
+}
+
 // ─── GET /api/chat/health ─────────────────────────────────────────────────────
 
-export function chatHealth(_req: Request, res: Response) {
-  const response: ApiResponse<{ status: string }> = {
-    success: true,
-    data: { status: 'Chat service is running' },
-  };
-  res.json(response);
+export async function chatHealth(_req: Request, res: Response) {
+  const health = await checkAIHealth();
+  const status = health.ok ? 200 : 503;
+  res.status(status).json(ok(health));
 }

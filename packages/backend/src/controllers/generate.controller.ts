@@ -1,16 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { callAI, buildMessages, extractJSON } from '../services/ai.service';
-import { buildGenerateSystemPrompt, detectLanguage } from '../services/context.service';
+import { callAI, buildMessages } from '../services/ai.service';
+import { PromptTemplates, detectLanguage } from '../services/prompt.service';
+import { parseGenerateResponse, ok } from '../services/response.service';
 import { recordUsage, hasTokenBudget } from '../services/token.service';
 import { AppError } from '../middleware/error.middleware';
-import { GenerateCodeRequest, GenerateCodeResponse, ApiResponse } from '../types';
+import { GenerateCodeRequest, GenerateCodeResponse } from '../types';
 import { logger } from '../utils/logger';
-
-interface GenerateAIResponse {
-  code: string;
-  explanation: string;
-  filename?: string;
-}
 
 // ─── POST /api/generate-code ──────────────────────────────────────────────────
 
@@ -23,43 +18,24 @@ export async function generateCode(req: Request, res: Response, next: NextFuncti
     const plan   = req.user?.plan   ?? 'free';
 
     if (!hasTokenBudget(userId, plan)) {
-      throw new AppError(429, 'Monthly AI token limit reached. Upgrade your plan for more.', 'TOKEN_LIMIT');
+      throw new AppError(429, 'Monthly AI token limit reached.', 'TOKEN_LIMIT');
     }
 
     const detectedLang = language ?? detectLanguage(filePath);
 
-    const system = buildGenerateSystemPrompt({
-      target,
-      language: detectedLang,
-      framework,
-      context,
-    });
+    const system   = PromptTemplates.generateCode.system({ target, language: detectedLang, framework, context });
+    const userMsg  = PromptTemplates.generateCode.user({ prompt, target });
+    const messages = buildMessages(userMsg);
 
-    const userPrompt = `Generate a ${target} for the following requirement:\n\n${prompt}`;
-    const messages = buildMessages(userPrompt);
     const ai = await callAI({ system, messages, maxTokens: 1000 });
 
     recordUsage(userId, plan, ai.promptTokens, ai.completionTokens);
 
-    // Parse structured JSON response from AI
-    const parsed = extractJSON<GenerateAIResponse>(ai.content);
-
-    if (!parsed || !parsed.code) {
-      logger.warn('Generate response was not structured JSON, using raw content', { userId });
-      const data: GenerateCodeResponse = {
-        code:             ai.content.trim(),
-        explanation:      `Generated ${target} based on your prompt.`,
-        language:         detectedLang,
-        promptTokens:     ai.promptTokens,
-        completionTokens: ai.completionTokens,
-        latencyMs:        ai.latencyMs,
-      };
-      return res.status(200).json({ success: true, data } satisfies ApiResponse<GenerateCodeResponse>);
-    }
+    const parsed = parseGenerateResponse(ai.content);
 
     const data: GenerateCodeResponse = {
       code:             parsed.code,
-      explanation:      parsed.explanation ?? '',
+      explanation:      parsed.explanation,
       filename:         parsed.filename,
       language:         detectedLang,
       promptTokens:     ai.promptTokens,
@@ -69,8 +45,7 @@ export async function generateCode(req: Request, res: Response, next: NextFuncti
 
     logger.info('Code generated', { userId, target, language: detectedLang, ms: ai.latencyMs });
 
-    const response: ApiResponse<GenerateCodeResponse> = { success: true, data };
-    res.status(200).json(response);
+    res.status(200).json(ok(data));
   } catch (err) {
     next(err);
   }

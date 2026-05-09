@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { callAI, buildMessages } from '../services/ai.service';
-import { buildExplainSystemPrompt, detectLanguage } from '../services/context.service';
+import { PromptTemplates, detectLanguage } from '../services/prompt.service';
+import { parseExplainResponse, ok } from '../services/response.service';
 import { recordUsage, hasTokenBudget } from '../services/token.service';
 import { AppError } from '../middleware/error.middleware';
-import { ExplainCodeRequest, ExplainCodeResponse, ApiResponse } from '../types';
+import { ExplainCodeRequest, ExplainCodeResponse } from '../types';
 import { logger } from '../utils/logger';
 
 // ─── POST /api/explain-code ───────────────────────────────────────────────────
@@ -16,32 +17,33 @@ export async function explainCode(req: Request, res: Response, next: NextFunctio
     const plan   = req.user?.plan   ?? 'free';
 
     if (!hasTokenBudget(userId, plan)) {
-      throw new AppError(429, 'Monthly AI token limit reached. Upgrade your plan for more.', 'TOKEN_LIMIT');
+      throw new AppError(429, 'Monthly AI token limit reached.', 'TOKEN_LIMIT');
     }
 
     const detectedLang = language ?? detectLanguage(filePath, code);
 
-    const system = buildExplainSystemPrompt({ language: detectedLang, filePath, detail });
-    const messages = buildMessages(
-      `Please explain the following code:\n\n\`\`\`${detectedLang.toLowerCase()}\n${code}\n\`\`\``,
-    );
+    const system   = PromptTemplates.explainCode.system({ language: detectedLang, filePath, detail });
+    const userMsg  = PromptTemplates.explainCode.user({ code, language: detectedLang });
+    const messages = buildMessages(userMsg);
 
-    const ai = await callAI({ system, messages, maxTokens: detail === 'brief' ? 300 : 800 });
+    const maxTokens = detail === 'brief' ? 300 : 800;
+    const ai = await callAI({ system, messages, maxTokens });
 
     recordUsage(userId, plan, ai.promptTokens, ai.completionTokens);
 
+    const parsed = parseExplainResponse(ai.content);
+
     const data: ExplainCodeResponse = {
-      explanation:      ai.content,
+      explanation:      parsed.explanation,
       language:         detectedLang,
       promptTokens:     ai.promptTokens,
       completionTokens: ai.completionTokens,
       latencyMs:        ai.latencyMs,
     };
 
-    logger.info('Code explained', { userId, language: detectedLang, ms: ai.latencyMs });
+    logger.info('Code explained', { userId, language: detectedLang, detail, ms: ai.latencyMs });
 
-    const response: ApiResponse<ExplainCodeResponse> = { success: true, data };
-    res.status(200).json(response);
+    res.status(200).json(ok(data));
   } catch (err) {
     next(err);
   }

@@ -1,40 +1,36 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
+import { config, validateConfig } from './config';
 import apiRouter from './routes/api';
 import { globalErrorHandler, notFoundHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/validate.middleware';
 import { logger } from './utils/logger';
 
-// Load environment variables
-dotenv.config();
+// Validate config before anything else
+validateConfig();
 
 // ─── App setup ────────────────────────────────────────────────────────────────
 
 const app = express();
-const PORT = process.env.PORT ?? 4000;
 
-// ─── Security middleware ──────────────────────────────────────────────────────
+// ─── Security ─────────────────────────────────────────────────────────────────
 
 app.use(helmet());
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') ?? [
-    'http://localhost:5173',  // Frontend (Vite)
-    'http://localhost:3000',  // Alternative frontend port
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin:         config.cors.origins,
+  credentials:    true,
+  methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ─── Body parsing ─────────────────────────────────────────────────────────────
+// ─── Parsing ──────────────────────────────────────────────────────────────────
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ─── Request logging ──────────────────────────────────────────────────────────
+// ─── Logging ──────────────────────────────────────────────────────────────────
 
 app.use(requestLogger);
 
@@ -45,33 +41,25 @@ app.get('/', (_req, res) => {
     name:    'AI Coding Assistant API',
     version: '1.0.0',
     status:  'running',
+    env:     config.nodeEnv,
     docs:    '/api',
   });
 });
 
 app.use('/api', apiRouter);
 
-// ─── Error handling ───────────────────────────────────────────────────────────
+// ─── Error handling (must be last) ───────────────────────────────────────────
 
-// 404 for any unmatched routes
 app.use(notFoundHandler);
-
-// Global error handler (must be last)
 app.use(globalErrorHandler);
 
-// ─── Start server ─────────────────────────────────────────────────────────────
+// ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
-  logger.info('Routes mounted:', {
-    routes: [
-      'POST /api/chat',
-      'POST /api/explain-code',
-      'POST /api/fix-code',
-      'POST /api/generate-code',
-    ],
-  });
+app.listen(config.port, () => {
+  logger.info(`Server running on http://localhost:${config.port}`);
+  logger.info(`Environment : ${config.nodeEnv}`);
+  logger.info(`AI model    : ${config.anthropic.model}`);
+  logger.info(`CORS origins: ${config.cors.origins.join(', ')}`);
 });
 
 export default app;
